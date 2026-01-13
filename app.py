@@ -104,9 +104,9 @@ def clean_formula(formula):
     return f
 
 def parse_side(side_str):
-    """辺を物質リストに分解。スペースのある '+' を区切りとして認識"""
-    # 前後にスペースがある '+' または大文字/丸括弧の直前にある '+' を区切りとする
-    parts = re.split(r'\s+\+\s+|\s*\+\s*(?=[A-Z(\[])', side_str.strip())
+    """辺を物質リストに分解。電荷の + と区切り文字の + を判別"""
+    # 前後にスペースがある '+' を優先して分割、または大文字・数字・括弧の前の '+' で分割
+    parts = re.split(r'\s+\+\s+|\s*\+\s*(?=[A-Z0-9(\[])', side_str.strip())
     subs = []
     for s in parts:
         s = s.strip()
@@ -158,8 +158,20 @@ with st.container():
         if st.button("追加 📥", use_container_width=True):
             if new_input:
                 try:
-                    # 分割記号の正規化
+                    # --- 1. LaTeX特有の記法をクリーニング ---
                     s = new_input
+                    # 数式デリミタの除去
+                    s = s.replace(r'\(', '').replace(r'\)', '').replace(r'\[', '').replace(r'\]', '')
+                    # \text{...} -> ... への変換
+                    s = re.sub(r'\\text\{([^}]*)\}', r'\1', s)
+                    # LaTeX矢印の変換
+                    s = re.sub(r'\\(?:long)?rightarrow', ' -> ', s)
+                    s = re.sub(r'\\(?:long)?Rightarrow', ' -> ', s)
+                    s = re.sub(r'\\(?:long)?leftrightarrow', ' <=> ', s)
+                    # バックスラッシュの残骸を除去
+                    s = s.replace('\\', '')
+                    
+                    # 記号の正規化（既存のロジック）
                     for arrow in ["<=>", "⇌", "⇄", "⇆", "<->", "-->", "->", "==", "=", "→", "⇒"]:
                         s = s.replace(arrow, " -> ")
                     
