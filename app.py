@@ -2,25 +2,24 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-import japanize_matplotlib
 
 # --- Streamlit 設定 ---
-st.set_page_config(page_title="🧪 Fe–H2O Pourbaix Diagram (Oxides vs Hydroxides)", layout="wide")
+st.set_page_config(page_title="Fe–H2O Pourbaix Diagram", layout="wide")
 st.markdown("""
 <div style="background: linear-gradient(135deg,#0f172a,#1e3a8a);
             color:white; padding:1.5rem; border-radius:12px; text-align:center;">
-    <h1>🧪 Fe–H2O Pourbaix Diagram (酸化物 / 水酸化物 選択可)</h1>
+    <h1>Fe–H2O Pourbaix Diagram (Oxides / Hydroxides selectable)</h1>
 </div>
 """, unsafe_allow_html=True)
 
 # --- サイドバー ---
 with st.sidebar:
-    st.header("⚙️ パラメータ")
-    temp_c = st.slider("温度 [°C]", 0, 100, 25)
-    log_a_fe2 = st.number_input("Fe²⁺ 活量 log₁₀(a)", value=-6.0, format="%.1f")
-    log_a_fe3 = st.number_input("Fe³⁺ 活量 log₁₀(a)", value=-6.0, format="%.1f")
-    phase_type = st.radio("酸化物 / 水酸化物の選択", ["酸化物のみ", "水酸化物のみ"])
-    show_boundary = st.checkbox("デバッグ境界線表示", value=True)
+    st.header("Parameters")
+    temp_c = st.slider("Temperature [°C]", 0, 100, 25)
+    log_a_fe2 = st.number_input("log10(Fe2+ activity)", value=-6.0, format="%.1f")
+    log_a_fe3 = st.number_input("log10(Fe3+ activity)", value=-6.0, format="%.1f")
+    phase_type = st.radio("Select phase type", ["Oxides only", "Hydroxides only"])
+    show_boundary = st.checkbox("Show boundary lines", value=True)
 
 # --- 定数 ---
 F = 96485.3
@@ -52,16 +51,15 @@ PH, E = np.meshgrid(ph_vec, e_vec)
 # --- Psi 計算関数 ---
 def calc_psi(PH, E, phase_type):
     Psi = {}
-    # 金属・イオン共通
     Psi["Fe"] = np.full_like(PH, Gf["Fe"]/F)
     Psi["Fe2+"] = Gf["Fe2+"]/F + act_fe2 - 2*E
     Psi["Fe3+"] = Gf["Fe3+"]/F + act_fe3 - 3*E
     Psi["HFeO2-"] = (Gf["HFeO2-"] - 2*G_H2O)/F - 2*E - 3*S*PH + act_fe2
 
-    if phase_type == "水酸化物のみ":
+    if phase_type == "Hydroxides only":
         Psi["Fe(OH)2"] = (Gf["Fe(OH)2"] - 2*G_H2O)/F - 2*E - 2*S*PH + act_fe2
         Psi["Fe(OH)3"] = (Gf["Fe(OH)3"] - 3*G_H2O)/F - 3*E - 3*S*PH + act_fe3
-    else:  # 酸化物のみ
+    else:  # Oxides only
         Psi["Fe3O4"] = ((Gf["Fe3O4"] - 4*G_H2O)/F - 8*E - 8*S*PH)/3
         Psi["Fe2O3"] = ((Gf["Fe2O3"] - 3*G_H2O)/F - 6*E - 6*S*PH)/2
 
@@ -70,8 +68,8 @@ def calc_psi(PH, E, phase_type):
 # --- Psi 計算 ---
 Psi_dict = calc_psi(PH, E, phase_type)
 
-# --- 使用するフェーズのキーを選択 ---
-if phase_type == "水酸化物のみ":
+# --- 使用フェーズキー選択 ---
+if phase_type == "Hydroxides only":
     psi_keys = ["Fe", "Fe2+", "Fe3+", "Fe(OH)2", "Fe(OH)3", "HFeO2-"]
 else:
     psi_keys = ["Fe", "Fe2+", "Fe3+", "Fe3O4", "Fe2O3", "HFeO2-"]
@@ -81,15 +79,17 @@ phase_map = np.argmin(Psi_stack, axis=0)
 
 # --- 描画 ---
 colors = ['#94a3b8','#3b82f6','#facc15','#60a5fa','#f87171','#a855f7','#22c55e','#fb923c']
+
+# 英字ラベルのみ（上付き下付きは文字として表現）
 labels_dict = {
-    "Fe": r"$Fe$",
-    "Fe2+": r"$Fe^{2+}$",
-    "Fe3+": r"$Fe^{3+}$",
-    "Fe(OH)2": r"$Fe(OH)_2$",
-    "Fe(OH)3": r"$Fe(OH)_3$",
-    "Fe3O4": r"$Fe_3O_4$",
-    "Fe2O3": r"$Fe_2O_3$",
-    "HFeO2-": r"$HFeO_2^-$"
+    "Fe": "Fe",
+    "Fe2+": "Fe2+",
+    "Fe3+": "Fe3+",
+    "Fe(OH)2": "Fe(OH)2",
+    "Fe(OH)3": "Fe(OH)3",
+    "Fe3O4": "Fe3O4",
+    "Fe2O3": "Fe2O3",
+    "HFeO2-": "HFeO2-"
 }
 labels = [labels_dict[k] for k in psi_keys]
 
@@ -106,7 +106,7 @@ ax.imshow(
 ax.plot(ph_vec, 1.229 - S*ph_vec,'k--', alpha=0.4)
 ax.plot(ph_vec, 0.0 - S*ph_vec,'k--', alpha=0.4)
 
-# ラベル
+# ラベル描画
 for idx, lab in enumerate(labels):
     mask = (phase_map==idx)
     if np.any(mask):
@@ -124,10 +124,10 @@ if show_boundary:
             ax.contour(PH, E, psi_list[i]-psi_list[j], levels=[0], **line_style)
 
 ax.set_xlabel("pH")
-ax.set_ylabel("電位 E [V vs SHE]")
+ax.set_ylabel("Potential E [V vs SHE]")
 ax.set_xlim(0,14)
 ax.set_ylim(-2.5,2.5)
 ax.grid(alpha=0.1)
-ax.set_title(f"Fe–H2O Pourbaix Diagram @ {temp_c}°C, log a(Fe²⁺)={log_a_fe2}, log a(Fe³⁺)={log_a_fe3}")
+ax.set_title(f"Fe–H2O Pourbaix Diagram @ {temp_c}°C, log a(Fe2+)={log_a_fe2}, log a(Fe3+)={log_a_fe3}")
 
 st.pyplot(fig)
