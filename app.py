@@ -165,6 +165,9 @@ if st.session_state.balanced_result:
     reac_resolved = st.session_state.reac_dict
     prod_resolved = st.session_state.prod_dict
 
+    if reac_resolved is None or prod_resolved is None:
+        st.stop()
+
     # --- STEP 2: 熱力学計算 ---
     st.markdown('<div class="step-header">STEP 2: 自由エネルギー計算 & 自発性判定</div>', unsafe_allow_html=True)
     st.info("この反応全体の標準エンタルピー変化(ΔH)とエントロピー変化(ΔS)を入力してください。")
