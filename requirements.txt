@@ -1,6 +1,7 @@
-streamlit==1.25.0
-numpy
+streamlit>=1.29.0
+numpy<2.0.0
 chempy
 matplotlib
 pandas
 japanize-matplotlib
+Pillow>=10.0.0
