@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+import japanize_matplotlib
 
 # --- Streamlit 設定 ---
 st.set_page_config(page_title="🧪 Fe–H2O Pourbaix Diagram (Oxides vs Hydroxides)", layout="wide")
@@ -60,32 +61,43 @@ def calc_psi(PH, E, phase_type):
     if phase_type == "水酸化物のみ":
         Psi["Fe(OH)2"] = (Gf["Fe(OH)2"] - 2*G_H2O)/F - 2*E - 2*S*PH + act_fe2
         Psi["Fe(OH)3"] = (Gf["Fe(OH)3"] - 3*G_H2O)/F - 3*E - 3*S*PH + act_fe3
-        # 酸化物は含めない
-        Psi["Fe3O4"] = np.full_like(PH, 1e6)
-        Psi["Fe2O3"] = np.full_like(PH, 1e6)
     else:  # 酸化物のみ
         Psi["Fe3O4"] = ((Gf["Fe3O4"] - 4*G_H2O)/F - 8*E - 8*S*PH)/3
         Psi["Fe2O3"] = ((Gf["Fe2O3"] - 3*G_H2O)/F - 6*E - 6*S*PH)/2
-        # 水酸化物は含めない
-        Psi["Fe(OH)2"] = np.full_like(PH, 1e6)
-        Psi["Fe(OH)3"] = np.full_like(PH, 1e6)
 
     return Psi
 
 # --- Psi 計算 ---
 Psi_dict = calc_psi(PH, E, phase_type)
-Psi_stack = np.stack(list(Psi_dict.values()), axis=0)
+
+# --- 使用するフェーズのキーを選択 ---
+if phase_type == "水酸化物のみ":
+    psi_keys = ["Fe", "Fe2+", "Fe3+", "Fe(OH)2", "Fe(OH)3", "HFeO2-"]
+else:
+    psi_keys = ["Fe", "Fe2+", "Fe3+", "Fe3O4", "Fe2O3", "HFeO2-"]
+
+Psi_stack = np.stack([Psi_dict[k] for k in psi_keys], axis=0)
 phase_map = np.argmin(Psi_stack, axis=0)
 
 # --- 描画 ---
 colors = ['#94a3b8','#3b82f6','#facc15','#60a5fa','#f87171','#a855f7','#22c55e','#fb923c']
-labels = [r"$Fe$", r"$Fe^{2+}$", r"$Fe^{3+}$", r"$Fe(OH)_2$", r"$Fe(OH)_3$", r"$Fe_3O_4$", r"$Fe_2O_3$", r"$HFeO_2^-$"]
+labels_dict = {
+    "Fe": r"$Fe$",
+    "Fe2+": r"$Fe^{2+}$",
+    "Fe3+": r"$Fe^{3+}$",
+    "Fe(OH)2": r"$Fe(OH)_2$",
+    "Fe(OH)3": r"$Fe(OH)_3$",
+    "Fe3O4": r"$Fe_3O_4$",
+    "Fe2O3": r"$Fe_2O_3$",
+    "HFeO2-": r"$HFeO_2^-$"
+}
+labels = [labels_dict[k] for k in psi_keys]
 
 fig, ax = plt.subplots(figsize=(10,8), dpi=120)
 ax.imshow(
     phase_map,
     origin='lower',
-    cmap=ListedColormap(colors),
+    cmap=ListedColormap(colors[:len(psi_keys)]),
     extent=[0,14,-2.5,2.5],
     aspect='auto'
 )
@@ -106,7 +118,7 @@ for idx, lab in enumerate(labels):
 # 境界線
 if show_boundary:
     line_style = {'colors':'white','linewidths':0.7,'alpha':0.6}
-    psi_list = list(Psi_dict.values())
+    psi_list = [Psi_dict[k] for k in psi_keys]
     for i in range(len(psi_list)):
         for j in range(i+1,len(psi_list)):
             ax.contour(PH, E, psi_list[i]-psi_list[j], levels=[0], **line_style)
